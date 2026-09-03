@@ -1,19 +1,24 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Users,
   Image as ImageIcon,
   Flame,
+  LayoutGrid,
   CreditCard,
-  ShieldAlert,
+  ShieldCheck,
   ArrowLeft,
   Bell,
   Search,
   UserCheck,
+  LogOut,
+  Sliders,
+  DollarSign,
+  Briefcase,
 } from "lucide-react";
 
 export default function AdminLayout({
@@ -22,13 +27,43 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  const [activeRole, setActiveRole] = useState("SUPER_ADMIN");
+  const router = useRouter();
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    fetch("/api/v1/auth/me")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.user) {
+          setCurrentUser(data.user);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/v1/auth/logout", { method: "POST" });
+      router.push("/login");
+      router.refresh();
+    } catch {
+      router.push("/login");
+    }
+  };
 
   const navItems = [
     { label: "Dashboard", href: "/admin", icon: LayoutDashboard },
-    { label: "Leads & CRM", href: "/admin/leads", icon: Users, badge: "4 New" },
-    { label: "Media & Palettes", href: "/admin/media-library", icon: ImageIcon },
-    { label: "Campaigns", href: "/admin/campaigns", icon: Flame },
+    { label: "Leads & CRM", href: "/admin/leads", icon: Users },
+    { label: "Media & Palette Studio", href: "/admin/media-library", icon: ImageIcon },
+    { label: "Active Campaigns", href: "/admin/campaigns", icon: Flame },
+    { label: "Homepage Showcase", href: "/admin/homepage-showcase", icon: LayoutGrid },
+    { label: "Client Accounts", href: "/admin/clients", icon: Briefcase },
+  ];
+
+  const settingItems = [
+    { label: "Team & RBAC Access", href: "/admin/settings/team", icon: ShieldCheck },
+    { label: "AI Deal History", href: "/admin/settings/deal-history", icon: DollarSign },
+    { label: "Payment Settings", href: "/admin/settings/payments", icon: CreditCard },
   ];
 
   return (
@@ -53,52 +88,90 @@ export default function AdminLayout({
             </Link>
           </div>
 
-          {/* Navigation Links */}
-          <nav className="p-4 space-y-1.5 font-heading">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname === item.href;
+          {/* Core Navigation Links */}
+          <div className="p-4 space-y-4">
+            <div className="space-y-1 font-heading">
+              <span className="block px-3 text-[10px] font-mono text-neutral-500 uppercase tracking-wider font-bold">
+                Operations
+              </span>
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = pathname === item.href;
 
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center justify-between px-3.5 py-2.5 rounded-lg text-xs font-bold transition-colors ${
-                    isActive
-                      ? "bg-comic-yellow text-comic-black font-black"
-                      : "text-neutral-400 hover:text-white hover:bg-neutral-800/60"
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <Icon className={`w-4 h-4 ${isActive ? "text-black" : "text-neutral-400"}`} />
-                    <span>{item.label}</span>
-                  </div>
-                  {item.badge && (
-                    <span className="bg-comic-pink text-white text-[10px] font-mono font-bold px-2 py-0.5 rounded-full">
-                      {item.badge}
-                    </span>
-                  )}
-                </Link>
-              );
-            })}
-          </nav>
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold transition-colors ${
+                      isActive
+                        ? "bg-comic-yellow text-comic-black font-black"
+                        : "text-neutral-400 hover:text-white hover:bg-neutral-800/60"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Icon className={`w-4 h-4 ${isActive ? "text-black" : "text-neutral-400"}`} />
+                      <span>{item.label}</span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+
+            {/* Settings Links */}
+            <div className="space-y-1 font-heading pt-2 border-t border-neutral-800/80">
+              <span className="block px-3 text-[10px] font-mono text-neutral-500 uppercase tracking-wider font-bold">
+                Control & Config
+              </span>
+              {settingItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = pathname === item.href;
+
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={`flex items-center justify-between px-3 py-2 rounded-lg text-xs font-bold transition-colors ${
+                      isActive
+                        ? "bg-comic-cyan text-comic-black font-black"
+                        : "text-neutral-400 hover:text-white hover:bg-neutral-800/60"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Icon className={`w-4 h-4 ${isActive ? "text-black" : "text-neutral-400"}`} />
+                      <span>{item.label}</span>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         {/* User Info & Back Link */}
         <div className="p-4 border-t border-neutral-800 space-y-3">
-          <div className="p-3 bg-neutral-900 rounded-lg border border-neutral-800 flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-comic-cyan text-comic-black flex items-center justify-center font-bold text-xs">
-              HR
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <p className="text-xs font-heading font-bold text-white truncate">
-                Harshit Ranjan
-              </p>
-              <div className="flex items-center gap-1 text-[10px] font-mono text-comic-yellow">
-                <UserCheck className="w-3 h-3" />
-                <span>{activeRole}</span>
+          <div className="p-3 bg-neutral-900 rounded-lg border border-neutral-800 flex items-center justify-between">
+            <div className="flex items-center gap-2.5 overflow-hidden">
+              <div className="w-8 h-8 rounded-full bg-comic-yellow text-comic-black flex items-center justify-center font-bold text-xs shrink-0">
+                {currentUser?.name?.slice(0, 2)?.toUpperCase() || "VP"}
+              </div>
+              <div className="overflow-hidden">
+                <p className="text-xs font-heading font-bold text-white truncate">
+                  {currentUser?.name || "Admin User"}
+                </p>
+                <div className="flex items-center gap-1 text-[10px] font-mono text-comic-yellow font-bold">
+                  <UserCheck className="w-3 h-3" />
+                  <span>{currentUser?.role || "ADMIN"}</span>
+                </div>
               </div>
             </div>
+
+            <button
+              onClick={handleLogout}
+              title="Sign Out"
+              className="p-1.5 text-neutral-400 hover:text-red-400 rounded hover:bg-neutral-800"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
           </div>
 
           <Link
@@ -117,23 +190,16 @@ export default function AdminLayout({
         <header className="h-16 bg-[#111218] border-b border-neutral-800 px-6 flex items-center justify-between">
           <div className="flex items-center gap-3 w-72">
             <Search className="w-4 h-4 text-neutral-500" />
-            <input
-              type="text"
-              placeholder="Search leads, campaigns, media..."
-              className="bg-transparent text-xs text-white placeholder-neutral-500 focus:outline-none w-full"
-            />
+            <span className="text-xs font-mono text-neutral-400">
+              Viral Plug Master Control Center
+            </span>
           </div>
 
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 bg-neutral-900 px-3 py-1.5 rounded-full border border-neutral-800 text-[11px] font-mono">
               <span className="w-2 h-2 rounded-full bg-comic-green animate-pulse" />
-              <span className="text-neutral-300">Palette Engine: WASM Online</span>
+              <span className="text-neutral-300">Database: PostgreSQL 17 Live</span>
             </div>
-
-            <button className="relative p-2 text-neutral-400 hover:text-white rounded-lg hover:bg-neutral-800">
-              <Bell className="w-4 h-4" />
-              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-comic-pink" />
-            </button>
           </div>
         </header>
 

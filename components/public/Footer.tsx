@@ -1,9 +1,30 @@
-import React from "react";
+"use client";
+
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { MessageSquare, ShieldCheck, Mail, Phone, MapPin, ArrowRight } from "lucide-react";
 import { ComicButton } from "../comic/ComicButton";
 
 export const Footer = () => {
+  const [sessionUser, setSessionUser] = useState<any>(null);
+
+  useEffect(() => {
+    fetch("/api/v1/auth/me")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.user) {
+          setSessionUser(data.user);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const hasAdminRights =
+    sessionUser &&
+    (sessionUser.role === "SUPER_ADMIN" ||
+      sessionUser.role === "ADMIN" ||
+      sessionUser.hasAdminAccess === true);
+
   return (
     <footer className="bg-comic-black border-t-4 border-comic-black text-white relative overflow-hidden">
       {/* Halftone pattern backdrop */}
@@ -95,7 +116,7 @@ export const Footer = () => {
         {/* Col 3: Platform & Legal */}
         <div>
           <h4 className="font-display text-lg uppercase tracking-wider text-comic-pink mb-4">
-            Platform & Legal
+            Platform & Portals
           </h4>
           <ul className="space-y-2.5 text-sm text-neutral-300 font-heading font-medium">
             <li>
@@ -103,19 +124,28 @@ export const Footer = () => {
                 Verified Case Studies
               </Link>
             </li>
-            <li>
-              <Link href="/admin" className="hover:text-comic-yellow transition-colors">
-                SaaS Admin & CRM Cockpit
-              </Link>
-            </li>
+            {hasAdminRights ? (
+              <li>
+                <Link href="/admin" className="hover:text-comic-yellow transition-colors font-bold text-comic-yellow">
+                  SaaS Admin & CRM Cockpit →
+                </Link>
+              </li>
+            ) : sessionUser ? (
+              <li>
+                <Link href="/portal" className="hover:text-comic-yellow transition-colors font-bold text-comic-cyan">
+                  My Client Portal →
+                </Link>
+              </li>
+            ) : (
+              <li>
+                <Link href="/login" className="hover:text-comic-yellow transition-colors">
+                  Account Sign In
+                </Link>
+              </li>
+            )}
             <li>
               <Link href="/privacy-policy" className="hover:text-comic-yellow transition-colors">
                 Privacy Policy (India DPDP 2026)
-              </Link>
-            </li>
-            <li>
-              <Link href="/terms-of-service" className="hover:text-comic-yellow transition-colors">
-                Terms of Service
               </Link>
             </li>
           </ul>
@@ -156,7 +186,7 @@ export const Footer = () => {
 
       {/* Copyright Bar */}
       <div className="border-t border-neutral-800 py-6 px-4 text-center text-xs font-mono text-neutral-500">
-        © 2026 VIRAL PLUG MEDIA PLATFORM. ALL RIGHTS RESERVED. POWERED BY NEXT.JS 16 & TAILWIND V4.
+        © 2026 VIRAL PLUG MEDIA PLATFORM. ALL RIGHTS RESERVED. POWERED BY NEXT.JS 16 & POSTGRESQL 17.
       </div>
     </footer>
   );

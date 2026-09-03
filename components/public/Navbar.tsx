@@ -1,21 +1,48 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { ComicButton } from "@/components/comic/ComicButton";
-import { Zap, Menu, X, Shield, Sparkles, Flame } from "lucide-react";
+import { Zap, Menu, X, Shield, Flame, User, LogOut, LayoutDashboard } from "lucide-react";
 
 export const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sessionUser, setSessionUser] = useState<any>(null);
   const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    fetch("/api/v1/auth/me")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.user) {
+          setSessionUser(data.user);
+        } else {
+          setSessionUser(null);
+        }
+      })
+      .catch(() => setSessionUser(null));
+  }, [pathname]);
+
+  const handleLogout = async () => {
+    await fetch("/api/v1/auth/logout", { method: "POST" });
+    setSessionUser(null);
+    router.push("/");
+    router.refresh();
+  };
 
   const navLinks = [
     { label: "Services", href: "/services" },
     { label: "Case Studies", href: "/case-studies" },
-    { label: "Palette Engine", href: "/#palette-demo" },
     { label: "Pricing", href: "/services#pricing" },
   ];
+
+  const hasAdminRights =
+    sessionUser &&
+    (sessionUser.role === "SUPER_ADMIN" ||
+      sessionUser.role === "ADMIN" ||
+      sessionUser.hasAdminAccess === true);
 
   return (
     <header className="sticky top-0 z-50 bg-comic-black/95 backdrop-blur-md border-b-[3.5px] border-comic-black text-white">
@@ -52,12 +79,44 @@ export const Navbar = () => {
 
         {/* Action CTAs */}
         <div className="hidden lg:flex items-center gap-4">
-          <Link href="/admin">
-            <span className="text-xs font-mono font-bold text-neutral-400 hover:text-white flex items-center gap-1 px-3 py-1.5 border border-neutral-800 rounded bg-neutral-900/80">
-              <Shield className="w-3.5 h-3.5 text-comic-cyan" />
-              SaaS Admin Cockpit
-            </span>
-          </Link>
+          {/* SaaS Admin Cockpit — STRICTLY role-gated */}
+          {hasAdminRights && (
+            <Link href="/admin">
+              <span className="text-xs font-mono font-bold text-comic-yellow hover:text-white flex items-center gap-1.5 px-3 py-1.5 border-2 border-comic-yellow/50 rounded bg-neutral-900/90 shadow-[2px_2px_0px_#FFE600]">
+                <Shield className="w-3.5 h-3.5 text-comic-yellow" />
+                SaaS Admin Cockpit
+              </span>
+            </Link>
+          )}
+
+          {/* Client Portal Button (if logged in as CLIENT) */}
+          {sessionUser && !hasAdminRights && (
+            <Link href="/portal">
+              <span className="text-xs font-mono font-bold text-comic-cyan hover:text-white flex items-center gap-1.5 px-3 py-1.5 border border-comic-cyan/50 rounded bg-neutral-900/90 shadow-[2px_2px_0px_#00F0FF]">
+                <LayoutDashboard className="w-3.5 h-3.5 text-comic-cyan" />
+                My Client Portal
+              </span>
+            </Link>
+          )}
+
+          {/* Login or User Menu */}
+          {sessionUser ? (
+            <button
+              onClick={handleLogout}
+              className="text-xs font-mono text-neutral-400 hover:text-red-400 flex items-center gap-1 px-2.5 py-1.5 rounded hover:bg-neutral-800"
+              title="Sign Out"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span>Sign Out</span>
+            </button>
+          ) : (
+            <Link href="/login">
+              <span className="text-xs font-mono font-bold text-neutral-300 hover:text-white flex items-center gap-1 px-3 py-1.5 border border-neutral-800 rounded bg-neutral-900/60">
+                <User className="w-3.5 h-3.5" />
+                Sign In
+              </span>
+            </Link>
+          )}
 
           <Link href="/enquiry">
             <ComicButton variant="yellow" size="sm" icon={<Flame className="w-4 h-4 text-comic-black" />}>
@@ -98,14 +157,50 @@ export const Navbar = () => {
                 {link.label}
               </Link>
             ))}
-            <Link
-              href="/admin"
-              onClick={() => setMobileMenuOpen(false)}
-              className="font-mono text-sm text-comic-cyan flex items-center gap-2 pt-2 border-t border-neutral-800"
-            >
-              <Shield className="w-4 h-4" />
-              Access Admin & CRM Cockpit
-            </Link>
+
+            {hasAdminRights && (
+              <Link
+                href="/admin"
+                onClick={() => setMobileMenuOpen(false)}
+                className="font-mono text-sm text-comic-yellow font-bold flex items-center gap-2 pt-2 border-t border-neutral-800"
+              >
+                <Shield className="w-4 h-4" />
+                SaaS Admin Cockpit
+              </Link>
+            )}
+
+            {sessionUser && !hasAdminRights && (
+              <Link
+                href="/portal"
+                onClick={() => setMobileMenuOpen(false)}
+                className="font-mono text-sm text-comic-cyan font-bold flex items-center gap-2 pt-2 border-t border-neutral-800"
+              >
+                <LayoutDashboard className="w-4 h-4" />
+                My Client Portal
+              </Link>
+            )}
+
+            {sessionUser ? (
+              <button
+                onClick={() => {
+                  setMobileMenuOpen(false);
+                  handleLogout();
+                }}
+                className="font-mono text-xs text-red-400 flex items-center gap-2 pt-2 border-t border-neutral-800 text-left"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                Sign Out ({sessionUser.name})
+              </button>
+            ) : (
+              <Link
+                href="/login"
+                onClick={() => setMobileMenuOpen(false)}
+                className="font-mono text-sm text-neutral-300 flex items-center gap-2 pt-2 border-t border-neutral-800"
+              >
+                <User className="w-4 h-4" />
+                Sign In
+              </Link>
+            )}
           </div>
         </div>
       )}

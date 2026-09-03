@@ -1,16 +1,66 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { SAMPLE_MEDIA_ASSETS } from "@/lib/db";
 import { ComicPosterCard } from "@/components/comic/ComicPosterCard";
 import { ComicButton } from "@/components/comic/ComicButton";
 import { StarburstBadge } from "@/components/comic/StarburstBadge";
-import { Flame, ArrowRight, Zap, Play, CheckCircle2, Sparkles } from "lucide-react";
+import { MediaAsset, ColorPalette, BusinessCategory } from "@/lib/types";
+import { DEFAULT_FALLBACK_PALETTE } from "@/lib/palette-engine";
+import { Flame, ArrowRight, Zap, CheckCircle2, Sparkles, LayoutGrid } from "lucide-react";
+
+interface VerticalData {
+  id: string;
+  category: string;
+  hero_media_id: string | null;
+  headline: string;
+  client_name: string;
+  reach_stat: string;
+  roas_stat: string;
+  is_featured: boolean;
+  display_order: number;
+  media_url?: string;
+  media_title?: string;
+  palette?: ColorPalette;
+  file_type?: "image" | "video";
+}
 
 export const HeroSection = () => {
-  const [selectedAssetIndex, setSelectedAssetIndex] = useState(0);
-  const currentAsset = SAMPLE_MEDIA_ASSETS[selectedAssetIndex];
+  const [verticals, setVerticals] = useState<VerticalData[]>([]);
+  const [selectedIndex, setSelectedIndex] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch("/api/v1/verticals?featured=true")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.data && data.data.length > 0) {
+          setVerticals(data.data);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const currentVertical = verticals[selectedIndex];
+
+  // Convert current vertical to MediaAsset shape for ComicPosterCard
+  const currentAsset: MediaAsset | null = currentVertical
+    ? {
+        id: currentVertical.id,
+        title: currentVertical.media_title || currentVertical.headline,
+        url: currentVertical.media_url || "https://images.unsplash.com/photo-1587049352846-4a222e784d38?auto=format&fit=crop&w=1200&q=85",
+        fileType: currentVertical.file_type || "image",
+        category: (currentVertical.category || "food-honey") as BusinessCategory,
+        clientName: currentVertical.client_name,
+        campaignHeadline: currentVertical.headline,
+        metrics: {
+          views: currentVertical.reach_stat,
+          roas: currentVertical.roas_stat,
+        },
+        palette: currentVertical.palette || DEFAULT_FALLBACK_PALETTE,
+      }
+    : null;
 
   return (
     <section className="relative overflow-hidden bg-comic-black text-white pt-10 pb-20 border-b-4 border-comic-black">
@@ -28,7 +78,7 @@ export const HeroSection = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-20">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-          {/* Left Column: Explosive Value Proposition */}
+          {/* Left Column: Value Proposition */}
           <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
             {/* Tagline Ribbon */}
             <div className="inline-flex items-center gap-2 bg-neutral-900 border-2 border-comic-yellow px-4 py-1.5 rounded-full shadow-[3px_3px_0px_#FFE600]">
@@ -58,26 +108,32 @@ export const HeroSection = () => {
               We turn real photos & videos of your <strong className="text-white">Properties, Food & Honey brands, Sports gear, Apparel, and Local shops</strong> into high-voltage comic-poster ad creatives with auto-extracted color palettes that crush ROAS.
             </p>
 
-            {/* Quick Interactive Niche Switcher */}
+            {/* Quick Interactive Niche Switcher (Database-Driven) */}
             <div className="pt-2">
               <p className="text-xs font-mono uppercase tracking-widest text-neutral-400 font-bold mb-2.5">
                 Preview Real Client Verticals:
               </p>
-              <div className="flex flex-wrap gap-2 justify-center lg:justify-start">
-                {SAMPLE_MEDIA_ASSETS.map((asset, idx) => (
-                  <button
-                    key={asset.id}
-                    onClick={() => setSelectedAssetIndex(idx)}
-                    className={`text-xs font-heading font-black px-3 py-1.5 rounded border-2 transition-all ${
-                      selectedAssetIndex === idx
-                        ? "bg-comic-yellow text-comic-black border-black shadow-[3px_3px_0px_#FF0055] scale-105"
-                        : "bg-neutral-900 text-neutral-300 border-neutral-700 hover:border-neutral-500"
-                    }`}
-                  >
-                    {asset.category.replace("-", " ").toUpperCase()}
-                  </button>
-                ))}
-              </div>
+              {verticals.length > 0 ? (
+                <div className="flex flex-wrap gap-2 justify-center lg:justify-start">
+                  {verticals.map((vert, idx) => (
+                    <button
+                      key={vert.id}
+                      onClick={() => setSelectedIndex(idx)}
+                      className={`text-xs font-heading font-black px-3 py-1.5 rounded border-2 transition-all ${
+                        selectedIndex === idx
+                          ? "bg-comic-yellow text-comic-black border-black shadow-[3px_3px_0px_#FF0055] scale-105"
+                          : "bg-neutral-900 text-neutral-300 border-neutral-700 hover:border-neutral-500"
+                      }`}
+                    >
+                      {vert.category.replace("-", " ").toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs font-mono text-neutral-500 italic">
+                  No verticals published yet — add one from the admin panel.
+                </p>
+              )}
             </div>
 
             {/* Action Buttons */}
@@ -115,27 +171,32 @@ export const HeroSection = () => {
               </div>
               <div className="flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 text-comic-pink shrink-0" />
-                <span>6.2x Average ROAS</span>
+                <span>Database-Backed Telemetry</span>
               </div>
             </div>
           </div>
 
-          {/* Right Column: Active Interactive Media Poster Preview */}
+          {/* Right Column: Active Poster Preview */}
           <div className="lg:col-span-5 flex justify-center">
-            <div className="relative w-full max-w-md">
-              {/* Dynamic Comic Poster Card with Real Photo/Video */}
-              <ComicPosterCard
-                asset={currentAsset}
-                priority
-                className="w-full"
-              />
-
-              {/* Floating Prompt Annotation */}
-              <div className="absolute -bottom-6 -left-6 bg-comic-black border-2 border-comic-yellow text-white text-xs font-heading font-black p-2.5 rounded-lg shadow-[4px_4px_0px_#FFE600] flex items-center gap-2 z-20">
-                <Sparkles className="w-4 h-4 text-comic-yellow animate-spin" />
-                <span>Colors dynamically extracted from photo!</span>
+            {currentAsset ? (
+              <div className="relative w-full max-w-md">
+                <ComicPosterCard asset={currentAsset} priority className="w-full" />
+                <div className="absolute -bottom-6 -left-6 bg-comic-black border-2 border-comic-yellow text-white text-xs font-heading font-black p-2.5 rounded-lg shadow-[4px_4px_0px_#FFE600] flex items-center gap-2 z-20">
+                  <Sparkles className="w-4 h-4 text-comic-yellow animate-spin" />
+                  <span>Colors dynamically extracted from photo!</span>
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="comic-card p-12 text-center bg-neutral-900 border-2 border-dashed border-neutral-700 max-w-md w-full space-y-3">
+                <LayoutGrid className="w-12 h-12 text-neutral-600 mx-auto" />
+                <p className="font-display text-lg uppercase text-white">
+                  No Showcase Poster Published
+                </p>
+                <p className="text-xs font-mono text-neutral-400">
+                  Publish a vertical from the Admin Panel to display live comic poster previews here.
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
