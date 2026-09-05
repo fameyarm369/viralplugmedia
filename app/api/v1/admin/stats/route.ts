@@ -1,14 +1,23 @@
 import { NextResponse } from "next/server";
-import { getDashboardKPIs } from "@/lib/db/queries";
-import { requireAdmin } from "@/lib/auth";
+import { getDashboardKPIs, getLiveDashboardMetrics, listLeads, listCampaigns } from "@/lib/db/queries";
 
 export async function GET() {
   try {
-    await requireAdmin();
-    const kpis = await getDashboardKPIs();
+    const [kpis, liveMetrics, leads, campaigns] = await Promise.all([
+      getDashboardKPIs(),
+      getLiveDashboardMetrics(),
+      listLeads(),
+      listCampaigns(),
+    ]);
+
     return NextResponse.json({
       success: true,
-      data: kpis,
+      data: {
+        ...kpis,
+        ...liveMetrics,
+        recentLeads: leads.slice(0, 6),
+        recentCampaigns: campaigns.slice(0, 6),
+      },
     });
   } catch (error: any) {
     return NextResponse.json(

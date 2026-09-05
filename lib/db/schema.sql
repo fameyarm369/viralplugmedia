@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
   name VARCHAR(255) NOT NULL,
-  role VARCHAR(50) NOT NULL DEFAULT 'CLIENT' CHECK (role IN ('SUPER_ADMIN', 'ADMIN', 'CLIENT')),
+  role VARCHAR(50) NOT NULL DEFAULT 'CLIENT' CHECK (role IN ('SUPER_ADMIN', 'ADMIN', 'CLIENT', 'EVENT_DIRECTOR', 'MEDIA_LEAD', 'STRATEGIST', 'ACCOUNT_MANAGER')),
   has_admin_access BOOLEAN NOT NULL DEFAULT FALSE,
   is_mfa_enabled BOOLEAN NOT NULL DEFAULT FALSE,
   last_login_at TIMESTAMPTZ,
@@ -17,7 +17,6 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Index for fast user search by email and role
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 
@@ -64,6 +63,7 @@ CREATE TABLE IF NOT EXISTS leads (
   name VARCHAR(255) NOT NULL,
   business_name VARCHAR(255) NOT NULL,
   category VARCHAR(50) NOT NULL,
+  service_type VARCHAR(100),
   phone VARCHAR(50) NOT NULL,
   email VARCHAR(255) NOT NULL,
   budget_range VARCHAR(100) NOT NULL,
@@ -80,17 +80,30 @@ CREATE TABLE IF NOT EXISTS leads (
 CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status);
 CREATE INDEX IF NOT EXISTS idx_leads_created_at ON leads(created_at DESC);
 
--- 5. Campaigns Table (Active & client campaigns)
+-- 5. Campaigns Table (Passive, Active, Completed & Cancelled Event Campaigns)
 CREATE TABLE IF NOT EXISTS campaigns (
   id VARCHAR(100) PRIMARY KEY,
   title VARCHAR(255) NOT NULL,
-  client_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  client_id UUID REFERENCES users(id) ON DELETE SET NULL,
   client_name VARCHAR(255) NOT NULL,
+  client_email VARCHAR(255),
+  client_phone VARCHAR(50),
   category VARCHAR(50) NOT NULL,
-  status VARCHAR(50) NOT NULL DEFAULT 'PROPOSAL_REVIEW' CHECK (status IN ('DRAFT', 'PROPOSAL_REVIEW', 'PAYMENT_PENDING', 'ACTIVE', 'COMPLETED')),
+  event_type VARCHAR(100),
+  request_type VARCHAR(100),
+  status VARCHAR(50) NOT NULL DEFAULT 'PASSIVE_REQUEST',
+  cancellation_reason TEXT,
   start_date DATE,
   end_date DATE,
+  event_date DATE,
+  location VARCHAR(255),
+  thumbnail_url TEXT,
   budget_inr NUMERIC(12, 2) NOT NULL DEFAULT 0,
+  progress_pct INTEGER NOT NULL DEFAULT 0,
+  current_step_name VARCHAR(255),
+  custom_criteria JSONB DEFAULT '[]'::jsonb,
+  team_members JSONB DEFAULT '[]'::jsonb,
+  budget_breakdown JSONB DEFAULT '{}'::jsonb,
   metrics JSONB NOT NULL DEFAULT '{"views": 0, "clicks": 0, "leads": 0, "roas": 0}'::jsonb,
   hero_media_id VARCHAR(100) REFERENCES media_assets(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -99,8 +112,94 @@ CREATE TABLE IF NOT EXISTS campaigns (
 
 CREATE INDEX IF NOT EXISTS idx_campaigns_client_id ON campaigns(client_id);
 CREATE INDEX IF NOT EXISTS idx_campaigns_status ON campaigns(status);
+CREATE INDEX IF NOT EXISTS idx_campaigns_category ON campaigns(category);
+CREATE INDEX IF NOT EXISTS idx_campaigns_event_date ON campaigns(event_date);
 
--- 6. Historical Deals Table (Grounding context for AI Deal Estimator)
+-- 6. Dynamic Campaign Steps Table
+CREATE TABLE IF NOT EXISTS campaign_steps (
+  id VARCHAR(100) PRIMARY KEY,
+  campaign_id VARCHAR(100) REFERENCES campaigns(id) ON DELETE CASCADE,
+  step_number INTEGER NOT NULL DEFAULT 1,
+  title VARCHAR(255) NOT NULL,
+  description TEXT,
+  task_type VARCHAR(50) NOT NULL DEFAULT 'PHOTO_UPLOAD' CHECK (task_type IN ('PHOTO_UPLOAD', 'VIDEO_UPLOAD', 'FILE_SUBMISSION', 'FORM_FILL', 'APPROVAL', 'MILESTONE')),
+  deadline TIMESTAMPTZ,
+  status VARCHAR(50) NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'IN_PROGRESS', 'SUBMITTED', 'COMPLETED')),
+  client_submission JSONB DEFAULT '{}'::jsonb,
+  completed_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_campaign_steps_camp_id ON campaign_steps(campaign_id, step_number);
+
+-- 7. Communications & Integrated Message Logs Table
+CREATE TABLE IF NOT EXISTS communications (
+  id VARCHAR(100) PRIMARY KEY,
+  campaign_id VARCHAR(100) REFERENCES campaigns(id) ON DELETE SET NULL,
+  client_id UUID REFERENCES users(id) ON DELETE SET NULL,
+  type VARCHAR(50) NOT NULL CHECK (type IN ('EMAIL', 'WHATSAPP', 'SYSTEM_LOG', 'NOTE')),
+  sender VARCHAR(255) NOT NULL,
+  recipient VARCHAR(255) NOT NULL,
+  subject VARCHAR(255),
+  content TEXT NOT NULL,
+  metadata JSONB DEFAULT '{}'::jsonb,
+  timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_comms_campaign_id ON communications(campaign_id);
+CREATE INDEX IF NOT EXISTS idx_comms_client_id ON communications(client_id);
+CREATE INDEX IF NOT EXISTS idx_comms_type ON communications(type);
+
+-- 8. Working Email Credentials Table (Super Admin System)
+CREATE TABLE IF NOT EXISTS working_emails (
+  id VARCHAR(100) PRIMARY KEY,
+  professional_name VARCHAR(255) NOT NULL,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  role VARCHAR(50) NOT NULL,
+  department VARCHAR(100) NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  plain_temp_password VARCHAR(255),
+  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+  is_mfa_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+  failed_login_attempts INTEGER NOT NULL DEFAULT 0,
+  created_by VARCHAR(255) NOT NULL DEFAULT 'Super Admin',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_working_emails_email ON working_emails(email);
+
+-- 9. Festival Themes Extension Table
+CREATE TABLE IF NOT EXISTS festival_themes (
+  id VARCHAR(100) PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  slug VARCHAR(100) UNIQUE NOT NULL,
+  festival_type VARCHAR(50) NOT NULL CHECK (festival_type IN ('RAKHI', 'DIWALI', 'EID', 'CHRISTMAS', 'CUSTOM')),
+  description TEXT,
+  color_scheme JSONB NOT NULL,
+  elements JSONB NOT NULL,
+  media_assets JSONB NOT NULL DEFAULT '[]'::jsonb,
+  auto_expiry_date TIMESTAMPTZ,
+  is_active BOOLEAN NOT NULL DEFAULT FALSE,
+  is_custom BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- 10. Real-time Activity Logs Table
+CREATE TABLE IF NOT EXISTS activity_logs (
+  id VARCHAR(100) PRIMARY KEY,
+  actor_name VARCHAR(255) NOT NULL,
+  actor_role VARCHAR(100) NOT NULL,
+  action VARCHAR(100) NOT NULL,
+  target VARCHAR(255) NOT NULL,
+  details TEXT,
+  timestamp TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_activity_logs_time ON activity_logs(timestamp DESC);
+
+-- 11. Historical Deals Table (Grounding context for AI Deal Estimator)
 CREATE TABLE IF NOT EXISTS historical_deals (
   id VARCHAR(100) PRIMARY KEY,
   category VARCHAR(50) NOT NULL,
@@ -113,9 +212,7 @@ CREATE TABLE IF NOT EXISTS historical_deals (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_historical_deals_category ON historical_deals(category);
-
--- 7. Invoices Table
+-- 12. Invoices Table
 CREATE TABLE IF NOT EXISTS invoices (
   id VARCHAR(100) PRIMARY KEY,
   campaign_id VARCHAR(100) REFERENCES campaigns(id) ON DELETE CASCADE,
@@ -129,9 +226,7 @@ CREATE TABLE IF NOT EXISTS invoices (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_invoices_client_id ON invoices(client_id);
-
--- 8. Payments Table (Razorpay advance & milestone ledger)
+-- 13. Payments Table
 CREATE TABLE IF NOT EXISTS payments (
   id VARCHAR(100) PRIMARY KEY,
   invoice_id VARCHAR(100) REFERENCES invoices(id) ON DELETE SET NULL,
@@ -147,10 +242,7 @@ CREATE TABLE IF NOT EXISTS payments (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_payments_client_id ON payments(client_id);
-CREATE INDEX IF NOT EXISTS idx_payments_idempotency ON payments(idempotency_key);
-
--- 9. Audit Logs Table (Tracks security & RBAC changes)
+-- 14. Audit Logs Table
 CREATE TABLE IF NOT EXISTS audit_logs (
   id VARCHAR(100) PRIMARY KEY,
   actor_id UUID REFERENCES users(id) ON DELETE SET NULL,
@@ -163,10 +255,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_audit_logs_actor ON audit_logs(actor_id);
-CREATE INDEX IF NOT EXISTS idx_audit_logs_created_at ON audit_logs(created_at DESC);
-
--- 10. Services Table (Dynamic database-backed offerings)
+-- 15. Services Table
 CREATE TABLE IF NOT EXISTS services (
   id VARCHAR(100) PRIMARY KEY,
   slug VARCHAR(100) UNIQUE NOT NULL,
@@ -184,7 +273,7 @@ CREATE TABLE IF NOT EXISTS services (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 11. Case Studies Table (Dynamic database-backed proof)
+-- 16. Case Studies Table
 CREATE TABLE IF NOT EXISTS case_studies (
   id VARCHAR(100) PRIMARY KEY,
   slug VARCHAR(100) UNIQUE NOT NULL,
@@ -204,16 +293,25 @@ CREATE TABLE IF NOT EXISTS case_studies (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- 12. App Settings Table
+-- 17. App Settings Table
 CREATE TABLE IF NOT EXISTS app_settings (
   key VARCHAR(100) PRIMARY KEY,
   value JSONB NOT NULL,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Default Settings Insert
-INSERT INTO app_settings (key, value)
-VALUES 
-  ('advance_payment_pct', '{"percentage": 20}'::jsonb),
-  ('contact_info', '{"email": "growth@viralplugmedia.com", "phone": "+91 98765 43210", "whatsapp": "919876543210"}'::jsonb)
-ON CONFLICT (key) DO NOTHING;
+-- Ensure default column alterations if tables existed
+ALTER TABLE leads ADD COLUMN IF NOT EXISTS service_type VARCHAR(100);
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS client_email VARCHAR(255);
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS client_phone VARCHAR(50);
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS event_type VARCHAR(100);
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS request_type VARCHAR(100);
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS location VARCHAR(255);
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS event_date DATE;
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS thumbnail_url TEXT;
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS progress_pct INTEGER DEFAULT 0;
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS current_step_name VARCHAR(255);
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS cancellation_reason TEXT;
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS custom_criteria JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS team_members JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS budget_breakdown JSONB DEFAULT '{}'::jsonb;

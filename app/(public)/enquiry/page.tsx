@@ -24,6 +24,16 @@ import {
   Clock,
 } from "lucide-react";
 
+type ServiceType =
+  | "brand-promotion"
+  | "model-photoshoot"
+  | "model-video"
+  | "product-shoot"
+  | "brand-film"
+  | "social-content"
+  | "event-planning"
+  | "not-sure";
+
 function EnquiryContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -38,6 +48,7 @@ function EnquiryContent() {
     name: "",
     businessName: "",
     category: initialCategory,
+    serviceType: "" as ServiceType | "",
     phone: "",
     email: "",
     budgetRange: "₹50k-₹1.5L / mo",
@@ -54,6 +65,17 @@ function EnquiryContent() {
   const [paying, setPaying] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [paymentError, setPaymentError] = useState("");
+
+  const serviceTypes: { label: string; value: ServiceType }[] = [
+    { label: "Brand Promotion / Ad Campaign", value: "brand-promotion" },
+    { label: "Model Photoshoot", value: "model-photoshoot" },
+    { label: "Model Video Shoot", value: "model-video" },
+    { label: "Product Shoot", value: "product-shoot" },
+    { label: "Brand Film / Corporate Video", value: "brand-film" },
+    { label: "Social Media Content", value: "social-content" },
+    { label: "Event Planning & Management", value: "event-planning" },
+    { label: "Not Sure — Guide Me", value: "not-sure" },
+  ];
 
   const categories: { label: string; value: BusinessCategory; defaultImg: string; color: string }[] = [
     {
@@ -108,7 +130,6 @@ function EnquiryContent() {
     setEstimateLoading(true);
 
     try {
-      // 1. Submit lead to database
       const leadRes = await fetch("/api/v1/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -119,12 +140,12 @@ function EnquiryContent() {
         setLeadCreated(leadData.data);
       }
 
-      // 2. Fetch grounded AI Deal Estimate
       const estRes = await fetch("/api/v1/estimate", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           category: formData.category,
+          serviceType: formData.serviceType,
           budgetRange: formData.budgetRange,
           timeline: formData.timeline,
           notes: formData.notes,
@@ -157,7 +178,6 @@ function EnquiryContent() {
     setPaymentError("");
 
     try {
-      // Step 1: Create Order
       const orderRes = await fetch("/api/v1/payments/create-order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -177,7 +197,6 @@ function EnquiryContent() {
         return;
       }
 
-      // Step 2: Simulate/Process verification and provision user + campaign
       const verifyRes = await fetch("/api/v1/payments/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -203,7 +222,6 @@ function EnquiryContent() {
           origin: { y: 0.5 },
         });
 
-        // Redirect seamlessly to Client Portal
         setTimeout(() => {
           router.push("/portal");
           router.refresh();
@@ -218,15 +236,21 @@ function EnquiryContent() {
     }
   };
 
-  const whatsappMessage = `*New Campaign Enquiry — Viral Plug Media*%0A%0A*Name:* ${formData.name}%0A*Business:* ${formData.businessName}%0A*Category:* ${formData.category}%0A*Budget:* ${formData.budgetRange}%0A*Timeline:* ${formData.timeline}%0A*Notes:* ${formData.notes || "Ready to launch!"}`;
+  const whatsappMessage = `*New Campaign Enquiry — Viral Plug Media*%0A%0A*Name:* ${formData.name}%0A*Business:* ${formData.businessName}%0A*Service:* ${formData.serviceType}%0A*Category:* ${formData.category}%0A*Budget:* ${formData.budgetRange}%0A*Timeline:* ${formData.timeline}%0A*Notes:* ${formData.notes || "Ready to launch!"}`;
   const whatsappUrl = createWhatsAppLink("919876543210", whatsappMessage);
+
+  const step1Valid =
+    !!formData.serviceType &&
+    !!formData.name &&
+    !!formData.businessName &&
+    !!formData.phone &&
+    !!formData.email;
 
   return (
     <div className="bg-comic-black text-white min-h-screen py-16 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
       <div className="absolute inset-0 bg-halftone-dots opacity-25 pointer-events-none" />
 
       <div className="max-w-4xl mx-auto relative z-10">
-        {/* Header */}
         <div className="text-center space-y-3 mb-12">
           <span className="comic-badge bg-comic-yellow text-comic-black text-xs font-black">
             IGNITE YOUR REACH ⚡
@@ -242,15 +266,13 @@ function EnquiryContent() {
           </p>
         </div>
 
-        {/* Form / Result Card */}
         <div className="comic-card p-6 sm:p-10 bg-neutral-900 border-[3.5px] border-comic-black shadow-[10px_10px_0px_#FFE600]">
-          {/* Step Bar */}
           <div className="flex items-center justify-between pb-8 mb-8 border-b border-neutral-800 text-xs font-heading font-black uppercase">
             <div className={`flex items-center gap-2 ${step >= 1 ? "text-comic-yellow" : "text-neutral-500"}`}>
               <span className={`w-7 h-7 rounded border-2 border-black flex items-center justify-center ${step >= 1 ? "bg-comic-yellow text-black" : "bg-neutral-800 text-neutral-400"}`}>
                 1
               </span>
-              <span>Category & Info</span>
+              <span>Service & Info</span>
             </div>
 
             <div className={`flex items-center gap-2 ${step >= 2 ? "text-comic-yellow" : "text-neutral-500"}`}>
@@ -268,12 +290,34 @@ function EnquiryContent() {
             </div>
           </div>
 
-          {/* STEP 1: Category & Contact */}
+          {/* STEP 1: Service + Niche + Contact */}
           {step === 1 && (
             <div className="space-y-6 animate-fadeIn">
               <div>
                 <label className="block text-xs font-mono font-bold uppercase tracking-wider text-neutral-300 mb-2">
-                  Select Your Business Niche:
+                  Aapko Kya Karwana Hai? *
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  {serviceTypes.map((s) => (
+                    <button
+                      type="button"
+                      key={s.value}
+                      onClick={() => setFormData((prev) => ({ ...prev, serviceType: s.value }))}
+                      className={`p-3 rounded-lg border-2 text-left transition-all ${
+                        formData.serviceType === s.value
+                          ? "bg-comic-pink text-white border-black shadow-[3px_3px_0px_#000] font-black"
+                          : "bg-neutral-800 text-neutral-300 border-neutral-700 hover:border-neutral-500 font-bold"
+                      } text-xs font-heading`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-mono font-bold uppercase tracking-wider text-neutral-300 mb-2">
+                  Business Niche:
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {categories.map((cat) => (
@@ -359,10 +403,10 @@ function EnquiryContent() {
                   variant="yellow"
                   size="md"
                   onClick={() => {
-                    if (formData.name && formData.businessName && formData.phone && formData.email) {
+                    if (step1Valid) {
                       setStep(2);
                     } else {
-                      alert("Please fill in your contact information to proceed.");
+                      alert("Please select a service and fill in your contact information to proceed.");
                     }
                   }}
                   icon={<ArrowRight className="w-4 h-4 text-comic-black" />}
@@ -380,8 +424,13 @@ function EnquiryContent() {
                 <label className="block text-xs font-mono font-bold uppercase tracking-wider text-neutral-300 mb-2">
                   Monthly Ad Spend Budget Range:
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {["₹25k-₹50k / mo", "₹50k-₹1.5L / mo", "₹1.5L+ / mo (Enterprise)"].map((b) => (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[
+                    "₹25k-₹50k / mo",
+                    "₹50k-₹1.5L / mo",
+                    "₹1.5L+ / mo (Enterprise)",
+                    "Abhi Decide Nahi Kiya",
+                  ].map((b) => (
                     <button
                       type="button"
                       key={b}
@@ -402,8 +451,13 @@ function EnquiryContent() {
                 <label className="block text-xs font-mono font-bold uppercase tracking-wider text-neutral-300 mb-2">
                   Target Launch Timeline:
                 </label>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  {["Immediately (Within 7 days)", "Within 2-3 weeks", "Planning for next month"].map((t) => (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[
+                    "Immediately (Within 7 days)",
+                    "Within 2-3 weeks",
+                    "Planning for next month",
+                    "Date Flexible / Not Sure",
+                  ].map((t) => (
                     <button
                       type="button"
                       key={t}
@@ -475,7 +529,6 @@ function EnquiryContent() {
                 </div>
               ) : (
                 <div className="space-y-6">
-                  {/* Lead Registration Confirmation */}
                   <div className="p-4 bg-comic-black rounded-lg border border-neutral-800 flex items-center justify-between">
                     <div>
                       <span className="text-[10px] font-mono text-comic-green uppercase font-bold">
@@ -490,7 +543,6 @@ function EnquiryContent() {
                     </span>
                   </div>
 
-                  {/* Grounded AI Deal Estimate Card */}
                   <div className="p-6 bg-[#161822] rounded-xl border-2 border-comic-yellow shadow-[6px_6px_0px_#FFE600] space-y-4">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
@@ -534,7 +586,6 @@ function EnquiryContent() {
                           </div>
                         </div>
 
-                        {/* Citation & Grounding Basis */}
                         <div className="p-3 bg-neutral-950 rounded border border-neutral-800 text-xs font-mono text-neutral-300 flex items-start gap-2.5">
                           <ShieldCheck className="w-4 h-4 text-comic-green shrink-0 mt-0.5" />
                           <span>
@@ -543,7 +594,6 @@ function EnquiryContent() {
                         </div>
                       </div>
                     ) : (
-                      /* Honest Fallback state when 0 historical deals exist */
                       <div className="p-4 bg-neutral-900 rounded-lg border border-neutral-800 space-y-2">
                         <div className="flex items-center gap-2 text-comic-yellow text-xs font-mono font-bold">
                           <Clock className="w-4 h-4" />
@@ -564,7 +614,6 @@ function EnquiryContent() {
                     </div>
                   )}
 
-                  {/* CTAs */}
                   <div className="pt-2 space-y-3">
                     {estimateResult?.suggestedAdvanceINR ? (
                       <button
@@ -626,4 +675,3 @@ export default function EnquiryPage() {
     </Suspense>
   );
 }
-

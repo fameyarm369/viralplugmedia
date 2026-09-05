@@ -24,6 +24,7 @@ export interface DealEstimateResult {
  */
 export async function calculateGroundedEstimate(params: {
   category: string;
+  serviceType?: string;
   budgetRange: string;
   timeline?: string;
   notes?: string;

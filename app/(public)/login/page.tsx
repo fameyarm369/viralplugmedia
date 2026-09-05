@@ -3,9 +3,18 @@
 import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { ComicButton } from "@/components/comic/ComicButton";
-import { StarburstBadge } from "@/components/comic/StarburstBadge";
-import { Shield, Lock, Mail, User, ArrowRight, AlertCircle, CheckCircle } from "lucide-react";
+import {
+  Mail,
+  Lock,
+  User,
+  ArrowRight,
+  AlertCircle,
+  CheckCircle,
+  Eye,
+  EyeOff,
+  Shield,
+} from "lucide-react";
+import "./login.css";
 
 function LoginForm() {
   const router = useRouter();
@@ -17,6 +26,8 @@ function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [name, setName] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [remember, setRemember] = useState(true);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -40,7 +51,7 @@ function LoginForm() {
         const res = await fetch("/api/v1/auth/login", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email, password, remember }),
         });
 
         const data = await res.json();
@@ -84,179 +95,225 @@ function LoginForm() {
     }
   };
 
+  const switchMode = (m: "login" | "register") => {
+    setMode(m);
+    setErrorMessage("");
+    setSuccessMessage("");
+  };
+
   return (
-    <div className="min-h-screen bg-comic-black text-white flex items-center justify-center py-16 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-      <div className="absolute inset-0 bg-halftone-dots opacity-30 pointer-events-none" />
+    <div className="vp-login-page">
+      <div className="vp-scene">
+        <div className="vp-bg-base" />
+        <div className="vp-rays" />
+        <div className="vp-halftone" />
+        <div className="vp-grain" />
 
-      <div className="hidden sm:block absolute top-12 right-12 animate-pulse-comic">
-        <StarburstBadge size="md" bgColor="#FFE600" textColor="#0A0A0C" rotate="6deg">
-          <span className="text-xs">SECURE</span>
-          <span className="text-sm font-black">ROLE ACCESS 🛡️</span>
-        </StarburstBadge>
-      </div>
+        <Link href="/" className="vp-brand-top">
+          <div className="vp-logo-mark">VP</div>
+          <div className="vp-logo-word">
+            VIRAL PLUG<span>.</span>
+          </div>
+        </Link>
 
-      <div className="max-w-md w-full relative z-10 space-y-6">
-        <div className="text-center space-y-2">
-          <Link href="/" className="inline-flex items-center gap-2.5 group">
-            <div className="w-12 h-12 bg-comic-yellow text-comic-black rounded-lg border-2 border-comic-black flex items-center justify-center font-display text-2xl font-black shadow-[3px_3px_0px_#FF0055]">
-              VP
-            </div>
-            <span className="font-display text-3xl tracking-wider text-white">
-              VIRAL PLUG<span className="text-comic-pink">.</span>
-            </span>
-          </Link>
-          <h1 className="font-display text-3xl uppercase tracking-tight text-white mt-2">
-            {mode === "login" ? "ACCOUNT SIGN IN" : "CLIENT REGISTRATION"}
-          </h1>
-          <p className="text-xs font-mono text-neutral-400">
-            {mode === "login"
-              ? "Access the Admin Cockpit or your Client Growth Portal"
-              : "Create your client account to track campaigns and performance"}
-          </p>
+        {/* starburst sticker */}
+        <div className="vp-sticker">
+          <svg viewBox="0 0 120 120">
+            <polygon
+              points="60,2 71,32 100,20 82,47 118,55 82,63 100,90 71,78 60,118 49,78 20,90 38,63 2,55 38,47 20,20 49,32"
+              fill="#FFE600"
+              stroke="#000"
+              strokeWidth="3"
+            />
+          </svg>
+          <span>
+            LIVE
+            <br />
+            ACCESS
+          </span>
         </div>
 
-        <div className="flex rounded-lg bg-neutral-900 border-2 border-neutral-800 p-1">
-          <button
-            type="button"
-            onClick={() => {
-              setMode("login");
-              setErrorMessage("");
-            }}
-            className={`flex-1 py-2 text-xs font-heading font-black uppercase rounded transition-all ${
-              mode === "login"
-                ? "bg-comic-yellow text-comic-black shadow-[2px_2px_0px_#000]"
-                : "text-neutral-400 hover:text-white"
-            }`}
-          >
-            Sign In
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setMode("register");
-              setErrorMessage("");
-            }}
-            className={`flex-1 py-2 text-xs font-heading font-black uppercase rounded transition-all ${
-              mode === "register"
-                ? "bg-comic-cyan text-comic-black shadow-[2px_2px_0px_#000]"
-                : "text-neutral-400 hover:text-white"
-            }`}
-          >
-            Register Client
-          </button>
-        </div>
+        {/* floating event/promo motifs */}
+        <svg className="vp-motif vp-m1" width="46" height="46" viewBox="0 0 46 46">
+          <circle cx="23" cy="23" r="20" fill="#FF2E88" stroke="#000" strokeWidth="2.5" />
+          <path d="M14 23l6 6 12-14" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        </svg>
+        <svg className="vp-motif vp-m2" width="50" height="50" viewBox="0 0 50 50">
+          <rect x="6" y="18" width="24" height="16" rx="3" fill="#22E0FF" stroke="#000" strokeWidth="2.5" />
+          <path d="M30 22l12-7v24l-12-7z" fill="#22E0FF" stroke="#000" strokeWidth="2.5" />
+        </svg>
+        <svg className="vp-motif vp-m3" width="44" height="44" viewBox="0 0 44 44">
+          <circle cx="22" cy="22" r="19" fill="#FFE600" stroke="#000" strokeWidth="2.5" />
+          <text x="22" y="27" textAnchor="middle" fontFamily="Baloo 2" fontWeight="800" fontSize="12" fill="#0A0A0C">
+            %
+          </text>
+        </svg>
+        <svg className="vp-motif vp-m4" width="48" height="48" viewBox="0 0 48 48">
+          <rect x="8" y="6" width="32" height="36" rx="4" fill="#FF2E88" stroke="#000" strokeWidth="2.5" />
+          <circle cx="24" cy="20" r="7" fill="#fff" />
+          <rect x="14" y="30" width="20" height="4" rx="2" fill="#fff" />
+        </svg>
 
-        <div className="comic-card p-8 bg-[#12131A] border-[3.5px] border-comic-black shadow-[8px_8px_0px_#FFE600] space-y-6">
-          {errorMessage && (
-            <div className="p-3 bg-red-950/80 border border-red-500 rounded flex items-start gap-2.5 text-xs text-red-200">
-              <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-              <span>{errorMessage}</span>
+        <div className="vp-card-outer">
+          <div className="vp-headline-wrap">
+            <div className="vp-headline">{mode === "login" ? "WELCOME BACK!" : "JOIN THE PLUG!"}</div>
+            <div className="vp-subline">
+              {mode === "login"
+                ? "Your campaigns are waiting. Let's go live."
+                : "Set up your Client Growth Portal in seconds."}
             </div>
-          )}
+          </div>
 
-          {successMessage && (
-            <div className="p-3 bg-green-950/80 border border-green-500 rounded flex items-start gap-2.5 text-xs text-green-200">
-              <CheckCircle className="w-4 h-4 text-green-400 shrink-0 mt-0.5" />
-              <span>{successMessage}</span>
-            </div>
-          )}
+          <div className="vp-mode-switch">
+            <button
+              type="button"
+              className={`vp-mode-btn ${mode === "login" ? "active" : ""}`}
+              onClick={() => switchMode("login")}
+            >
+              Sign In
+            </button>
+            <button
+              type="button"
+              className={`vp-mode-btn ${mode === "register" ? "active" : ""}`}
+              onClick={() => switchMode("register")}
+            >
+              Register
+            </button>
+          </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {mode === "register" && (
-              <div>
-                <label className="block text-xs font-mono font-bold uppercase text-neutral-300 mb-1">
-                  Full Name / Contact Name
-                </label>
-                <div className="relative">
-                  <User className="w-4 h-4 text-neutral-500 absolute left-3 top-3.5" />
+          <div className="vp-card">
+            <svg className="vp-corner-flash" viewBox="0 0 44 44">
+              <path d="M22 2l4 14 14 4-14 4-4 14-4-14L4 20l14-4z" fill="#22E0FF" stroke="#000" strokeWidth="2" />
+            </svg>
+
+            {errorMessage && (
+              <div role="alert" className="vp-alert error">
+                <AlertCircle size={16} style={{ flexShrink: 0, marginTop: 1 }} />
+                <span>{errorMessage}</span>
+              </div>
+            )}
+            {successMessage && (
+              <div role="status" className="vp-alert success">
+                <CheckCircle size={16} style={{ flexShrink: 0, marginTop: 1 }} />
+                <span>{successMessage}</span>
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit}>
+              {mode === "register" && (
+                <div className="vp-field">
+                  <label>Full Name / Contact Name</label>
+                  <div className="vp-row">
+                    <span className="vp-icon">
+                      <User size={15} />
+                    </span>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Vikram Malhotra"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="vp-field">
+                <label>Email address</label>
+                <div className="vp-row">
+                  <span className="vp-icon">
+                    <Mail size={15} />
+                  </span>
                   <input
-                    type="text"
+                    type="email"
                     required
-                    placeholder="Vikram Malhotra"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="w-full bg-comic-black border-2 border-neutral-700 rounded p-2.5 pl-9 text-sm text-white focus:border-comic-cyan focus:outline-none font-body"
+                    autoComplete="email"
+                    placeholder="admin@brand.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
               </div>
-            )}
 
-            <div>
-              <label className="block text-xs font-mono font-bold uppercase text-neutral-300 mb-1">
-                Official Email Address
-              </label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-neutral-500 absolute left-3 top-3.5" />
-                <input
-                  type="email"
-                  required
-                  placeholder="admin@brand.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-comic-black border-2 border-neutral-700 rounded p-2.5 pl-9 text-sm text-white focus:border-comic-yellow focus:outline-none font-body"
-                />
+              <div className="vp-field">
+                <label>
+                  Password
+                  {mode === "login" && (
+                    <Link href="/forgot-password" className="vp-forgot">
+                      Forgot?
+                    </Link>
+                  )}
+                </label>
+                <div className="vp-row">
+                  <span className="vp-icon">
+                    <Lock size={15} />
+                  </span>
+                  <input
+                    type={showPassword ? "text" : "password"}
+                    required
+                    autoComplete={mode === "login" ? "current-password" : "new-password"}
+                    placeholder="••••••••••••"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  <button
+                    type="button"
+                    className="vp-icon-toggle"
+                    onClick={() => setShowPassword((s) => !s)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
               </div>
+
+              {mode === "login" && (
+                <label className="vp-remember">
+                  <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)} />
+                  Keep me signed in
+                </label>
+              )}
+
+              <button type="submit" className="vp-submit" disabled={loading}>
+                {loading ? "Verifying..." : mode === "login" ? "Enter the Cockpit" : "Create Account"}
+                {!loading && <ArrowRight size={16} className="vp-arrow" />}
+              </button>
+            </form>
+
+            <div className="vp-divider">
+              <div className="vp-l" />
+              <span>or continue with</span>
+              <div className="vp-l" />
+            </div>
+            <div className="vp-socials">
+              <button type="button" aria-label="Continue with Google">G</button>
+              <button type="button" aria-label="Continue with Facebook">f</button>
+              <button type="button" aria-label="Continue with Apple"></button>
             </div>
 
-            <div>
-              <label className="block text-xs font-mono font-bold uppercase text-neutral-300 mb-1">
-                Password
-              </label>
-              <div className="relative">
-                <Lock className="w-4 h-4 text-neutral-500 absolute left-3 top-3.5" />
-                <input
-                  type="password"
-                  required
-                  placeholder="••••••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-comic-black border-2 border-neutral-700 rounded p-2.5 pl-9 text-sm text-white focus:border-comic-yellow focus:outline-none font-body"
-                />
-              </div>
+            <div className="vp-foot">
+              {mode === "login" ? (
+                <>
+                  First time here?{" "}
+                  <button type="button" onClick={() => switchMode("register")}>
+                    Create an account
+                  </button>
+                </>
+              ) : (
+                <>
+                  Already with us?{" "}
+                  <button type="button" onClick={() => switchMode("login")}>
+                    Sign in here
+                  </button>
+                </>
+              )}
             </div>
-
-            <div className="pt-2">
-              <ComicButton
-                type="submit"
-                variant={mode === "login" ? "yellow" : "cyan"}
-                size="md"
-                disabled={loading}
-                className="w-full"
-                icon={<ArrowRight className="w-4 h-4 text-comic-black" />}
-              >
-                {loading ? "Verifying..." : mode === "login" ? "Sign In to Cockpit →" : "Create Account →"}
-              </ComicButton>
-            </div>
-          </form>
-
-          <div className="pt-2 text-center text-xs font-mono text-neutral-400 border-t border-neutral-800">
-            {mode === "login" ? (
-              <p>
-                First time visitor?{" "}
-                <button
-                  onClick={() => setMode("register")}
-                  className="text-comic-yellow hover:underline font-bold"
-                >
-                  Register here
-                </button>
-              </p>
-            ) : (
-              <p>
-                Already have an account?{" "}
-                <button
-                  onClick={() => setMode("login")}
-                  className="text-comic-cyan hover:underline font-bold"
-                >
-                  Sign in here
-                </button>
-              </p>
-            )}
           </div>
-        </div>
 
-        <div className="text-center text-[11px] font-mono text-neutral-500 flex items-center justify-center gap-1.5">
-          <Shield className="w-3.5 h-3.5 text-comic-cyan" />
-          <span>Sessions auto-expire after 15 minutes of inactivity</span>
+          <div className="vp-session-note">
+            <Shield size={12} />
+            <span>Sessions auto-expire after 15 minutes of inactivity</span>
+          </div>
         </div>
       </div>
     </div>
@@ -267,8 +324,10 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-comic-black text-white flex items-center justify-center font-mono text-xs">
-          Loading authentication gateway...
+        <div className="vp-login-page">
+          <div className="vp-scene" style={{ fontFamily: "monospace", fontSize: 12 }}>
+            Loading authentication gateway...
+          </div>
         </div>
       }
     >

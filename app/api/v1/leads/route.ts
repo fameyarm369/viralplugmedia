@@ -32,7 +32,18 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, businessName, category, phone, email, budgetRange, timeline, notes, primaryMediaId } = body;
+    const {
+      name,
+      businessName,
+      category,
+      serviceType,
+      phone,
+      email,
+      budgetRange,
+      timeline,
+      notes,
+      primaryMediaId,
+    } = body;
 
     if (!name || !businessName || !phone || !email) {
       return NextResponse.json(
@@ -45,15 +56,20 @@ export async function POST(req: Request) {
     let score = 50;
     if (budgetRange?.includes("1.5L+")) score += 35;
     else if (budgetRange?.includes("50k")) score += 25;
+    else if (budgetRange?.includes("Abhi Decide")) score += 5; // undecided budget = lower urgency signal
     else score += 10;
 
     if (timeline?.includes("Immediately")) score += 15;
     if (notes && notes.length > 20) score += 5;
 
+    // "Not sure" service selections are genuine leads too, just less qualified yet
+    if (serviceType && serviceType !== "not-sure") score += 5;
+
     const newLead = await createLead({
       name,
       businessName,
       category: category || "food-honey",
+      serviceType: serviceType || "not-sure",
       phone,
       email,
       budgetRange: budgetRange || "₹50k-₹1.5L / mo",

@@ -4,11 +4,13 @@ import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { ComicButton } from "@/components/comic/ComicButton";
+import { EntryChoiceModal } from "@/components/public/EntryChoiceModal";
 import { Zap, Menu, X, Shield, Flame, User, LogOut, LayoutDashboard } from "lucide-react";
 
 export const Navbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sessionUser, setSessionUser] = useState<any>(null);
+  const [showChoice, setShowChoice] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -118,20 +120,21 @@ export const Navbar = () => {
             </Link>
           )}
 
-          <Link href="/enquiry">
-            <ComicButton variant="yellow" size="sm" icon={<Flame className="w-4 h-4 text-comic-black" />}>
-              Promote My Brand
-            </ComicButton>
-          </Link>
+          <ComicButton
+            variant="yellow"
+            size="sm"
+            icon={<Flame className="w-4 h-4 text-comic-black" />}
+            onClick={() => setShowChoice(true)}
+          >
+            Start My Campaign ⚡
+          </ComicButton>
         </div>
 
         {/* Mobile Menu Button */}
         <div className="flex md:hidden items-center gap-3">
-          <Link href="/enquiry">
-            <ComicButton variant="yellow" size="sm">
-              Enquire
-            </ComicButton>
-          </Link>
+          <ComicButton variant="yellow" size="sm" onClick={() => setShowChoice(true)}>
+            Start My Campaign ⚡
+          </ComicButton>
 
           <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -204,6 +207,9 @@ export const Navbar = () => {
           </div>
         </div>
       )}
+
+      {/* Entry Choice Modal — opens on "Start My Campaign" click */}
+      <EntryChoiceModal open={showChoice} onClose={() => setShowChoice(false)} />
     </header>
   );
 };

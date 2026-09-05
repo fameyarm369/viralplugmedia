@@ -9,9 +9,11 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/pg": "^8.23.1",
     "bcryptjs": "^3.0.3",
+    "bufferutil": "^4.1.0",
     "canvas-confetti": "^1.9.4",
     "clsx": "^2.1.1",
     "colord": "^2.9.3",
@@ -24,16 +26,24 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "tailwind-merge": "^3.0.2",
-    "tsx": "^4.23.13"
+    "tsx": "^4.23.13",
+    "utf-8-validate": "^6.0.6",
+    "ws": "^8.21.3"
   },
   "devDependencies": {
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^22.13.5",
     "@types/react": "^19.0.10",
     "@types/react-dom": "^19.0.4",
+    "@types/ws": "^8.18.1",
     "autoprefixer": "^10.4.20",
     "postcss": "^8.5.3",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.3"
+  },
+  "allowScripts": {
+    "bufferutil@4.1.0": true,
+    "esbuild@0.28.2": true,
+    "utf-8-validate@6.0.6": true
   }
 }

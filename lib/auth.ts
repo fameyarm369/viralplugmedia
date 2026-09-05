@@ -3,7 +3,14 @@ import { SignJWT, jwtVerify } from "jose";
 import bcrypt from "bcryptjs";
 import { query } from "@/lib/db";
 
-export type UserRole = "SUPER_ADMIN" | "ADMIN" | "CLIENT";
+export type UserRole =
+  | "SUPER_ADMIN"
+  | "ADMIN"
+  | "CLIENT"
+  | "EVENT_DIRECTOR"
+  | "MEDIA_LEAD"
+  | "STRATEGIST"
+  | "ACCOUNT_MANAGER";
 
 export interface SessionUser {
   id: string;
