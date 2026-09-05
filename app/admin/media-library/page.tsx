@@ -43,15 +43,42 @@ export default function AdminMediaLibraryPage() {
   // Upload Form State
   const [uploadData, setUploadData] = useState({
     title: "",
-    url: "",
-    fileType: "image" as "image" | "video",
     category: "food-honey",
     clientName: "",
     campaignHeadline: "",
     viewsMetric: "1.4M+",
     roasMetric: "6.2x ROAS",
+    altText: "",
+    caption: "",
   });
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [filePreviewUrl, setFilePreviewUrl] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadStage, setUploadStage] = useState<string | null>(null);
+
+  const MAX_IMAGE_MB = 25;
+  const MAX_VIDEO_MB = 150;
+
+  const handleFileSelect = (file: File | null) => {
+    if (filePreviewUrl) URL.revokeObjectURL(filePreviewUrl);
+    setSelectedFile(null);
+    setFilePreviewUrl(null);
+    if (!file) return;
+
+    const isVideo = file.type.startsWith("video/");
+    const maxBytes = (isVideo ? MAX_VIDEO_MB : MAX_IMAGE_MB) * 1024 * 1024;
+    if (file.size > maxBytes) {
+      setMessage({
+        type: "error",
+        text: `File is ${(file.size / (1024 * 1024)).toFixed(1)}MB — exceeds the ${isVideo ? MAX_VIDEO_MB : MAX_IMAGE_MB}MB limit for ${isVideo ? "videos" : "images"}.`,
+      });
+      return;
+    }
+
+    setSelectedFile(file);
+    setFilePreviewUrl(URL.createObjectURL(file));
+    setMessage(null);
+  };
 
   const fetchMedia = async () => {
     try {
@@ -77,64 +104,101 @@ export default function AdminMediaLibraryPage() {
 
   const handleUploadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedFile) {
+      setMessage({ type: "error", text: "Choose an image or video file first" });
+      return;
+    }
+
     setUploading(true);
     setMessage(null);
 
     try {
-      // Step 1: Process palette from colors or server
-      const paletteRes = await fetch("/api/v1/media/process-palette", {
+      const fileType: "image" | "video" = selectedFile.type.startsWith("video/") ? "video" : "image";
+
+      // Step 1: ask the server for a signed, time-limited upload permission
+      setUploadStage("Requesting secure upload slot…");
+      const sigRes = await fetch("/api/v1/admin/media/upload-signature", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          dominant: "#FF5E00",
-          vibrant: "#FFE600",
-          darkVibrant: "#1D3557",
+          fileName: selectedFile.name,
+          mimeType: selectedFile.type,
+          fileSizeBytes: selectedFile.size,
+          fileType,
+          category: uploadData.category,
         }),
       });
-      const paletteData = await paletteRes.json();
+      const sigData = await sigRes.json();
+      if (!sigData.success) throw new Error(sigData.error || "Could not get upload permission");
+      const { timestamp, signature, apiKey, cloudName, folder, publicId, resourceType } = sigData.data;
 
-      // Step 2: Create media asset in DB
-      const res = await fetch("/api/v1/admin/media", {
+      // Step 2: upload the actual file bytes straight to Cloudinary (never through our server)
+      setUploadStage(`Uploading ${fileType} to Cloudinary…`);
+      const form = new FormData();
+      form.append("file", selectedFile);
+      form.append("api_key", apiKey);
+      form.append("timestamp", String(timestamp));
+      form.append("signature", signature);
+      form.append("folder", folder);
+      form.append("public_id", publicId);
+
+      const uploadRes = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/${resourceType}/upload`,
+        { method: "POST", body: form }
+      );
+      const uploadJson = await uploadRes.json();
+      if (uploadJson.error) throw new Error(uploadJson.error.message || "Cloudinary upload failed");
+
+      // Step 3: server verifies what actually landed in Cloudinary, extracts the
+      // real palette from the real image, and persists the media_assets row
+      setUploadStage("Verifying upload & extracting palette…");
+      const confirmRes = await fetch("/api/v1/admin/media/confirm", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          publicId,
+          resourceType,
           title: uploadData.title,
-          url: uploadData.url,
-          fileType: uploadData.fileType,
           category: uploadData.category,
           clientName: uploadData.clientName,
           campaignHeadline: uploadData.campaignHeadline,
+          altText: uploadData.altText,
+          caption: uploadData.caption,
           metrics: {
             views: uploadData.viewsMetric,
             roas: uploadData.roasMetric,
           },
-          palette: paletteData.palette,
+          originalFilename: selectedFile.name,
         }),
       });
 
-      const data = await res.json();
+      const data = await confirmRes.json();
       if (data.success) {
-        setMessage({ type: "success", text: "Media uploaded and palette extracted successfully!" });
+        setMessage({ type: "success", text: data.message || "Media uploaded and palette extracted successfully!" });
         setShowUploadModal(false);
         setUploadData({
           title: "",
-          url: "",
-          fileType: "image",
           category: "food-honey",
           clientName: "",
           campaignHeadline: "",
           viewsMetric: "1.4M+",
           roasMetric: "6.2x ROAS",
+          altText: "",
+          caption: "",
         });
+        if (filePreviewUrl) URL.revokeObjectURL(filePreviewUrl);
+        setSelectedFile(null);
+        setFilePreviewUrl(null);
         await fetchMedia();
         setSelectedAsset(data.data);
       } else {
-        setMessage({ type: "error", text: data.error || "Failed to upload media" });
+        setMessage({ type: "error", text: data.error || "Failed to save media" });
       }
     } catch (err: any) {
       setMessage({ type: "error", text: err.message || "Upload error" });
     } finally {
       setUploading(false);
+      setUploadStage(null);
     }
   };
 
@@ -198,7 +262,7 @@ export default function AdminMediaLibraryPage() {
             <span>MEDIA ASSET & PALETTE STUDIO</span>
           </h1>
           <p className="text-xs font-mono text-neutral-400 mt-1">
-            node-vibrant WASM Extraction • Real-Time WCAG AA Contrast Validation • Cloudflare R2 Uploads
+            Cloudinary Uploads • Real Dominant-Color Extraction • WCAG AA Contrast Validation
           </p>
         </div>
 
@@ -450,52 +514,58 @@ export default function AdminMediaLibraryPage() {
 
               <div>
                 <label className="block text-xs font-mono uppercase text-neutral-300 mb-1 font-bold">
-                  Direct Photo / Video URL (or Cloudflare R2 URL) *
+                  Image or Video File *
                 </label>
                 <input
-                  type="url"
+                  type="file"
                   required
-                  placeholder="https://images.unsplash.com/photo-..."
-                  value={uploadData.url}
-                  onChange={(e) => setUploadData({ ...uploadData, url: e.target.value })}
-                  className="w-full bg-comic-black border border-neutral-700 rounded p-2.5 text-xs text-white focus:border-comic-cyan focus:outline-none"
+                  accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml,video/mp4,video/webm,video/quicktime"
+                  onChange={(e) => handleFileSelect(e.target.files?.[0] || null)}
+                  className="w-full bg-comic-black border border-neutral-700 rounded p-2 text-xs text-white file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:bg-comic-cyan file:text-comic-black file:font-heading file:font-bold file:text-xs focus:border-comic-cyan focus:outline-none"
                 />
+                <p className="text-[10px] font-mono text-neutral-500 mt-1">
+                  Images (jpg/png/webp/gif/svg) up to {MAX_IMAGE_MB}MB • Videos (mp4/webm/mov) up to {MAX_VIDEO_MB}MB
+                </p>
+                {filePreviewUrl && (
+                  <div className="mt-2 rounded border border-neutral-700 overflow-hidden">
+                    {selectedFile?.type.startsWith("video/") ? (
+                      <video src={filePreviewUrl} className="w-full h-32 object-cover" muted />
+                    ) : (
+                      <img src={filePreviewUrl} alt="Selected file preview" className="w-full h-32 object-cover" />
+                    )}
+                  </div>
+                )}
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-mono uppercase text-neutral-300 mb-1 font-bold">
-                    Category *
-                  </label>
-                  <select
-                    value={uploadData.category}
-                    onChange={(e) => setUploadData({ ...uploadData, category: e.target.value })}
-                    className="w-full bg-comic-black border border-neutral-700 rounded p-2.5 text-xs text-white focus:border-comic-cyan focus:outline-none"
-                  >
-                    <option value="food-honey">Food & Honey</option>
-                    <option value="sports-football">Sports & Cleats</option>
-                    <option value="property">Real Estate</option>
-                    <option value="fashion-apparel">Fashion & Drip</option>
-                    <option value="local-shop">Local Shop & Cafe</option>
-                    <option value="creator-influencer">Creator & Events</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block text-xs font-mono uppercase text-neutral-300 mb-1 font-bold">
+                  Category *
+                </label>
+                <select
+                  value={uploadData.category}
+                  onChange={(e) => setUploadData({ ...uploadData, category: e.target.value })}
+                  className="w-full bg-comic-black border border-neutral-700 rounded p-2.5 text-xs text-white focus:border-comic-cyan focus:outline-none"
+                >
+                  <option value="food-honey">Food & Honey</option>
+                  <option value="sports-football">Sports & Cleats</option>
+                  <option value="property">Real Estate</option>
+                  <option value="fashion-apparel">Fashion & Drip</option>
+                  <option value="local-shop">Local Shop & Cafe</option>
+                  <option value="creator-influencer">Creator & Events</option>
+                </select>
+              </div>
 
-                <div>
-                  <label className="block text-xs font-mono uppercase text-neutral-300 mb-1 font-bold">
-                    File Type
-                  </label>
-                  <select
-                    value={uploadData.fileType}
-                    onChange={(e) =>
-                      setUploadData({ ...uploadData, fileType: e.target.value as "image" | "video" })
-                    }
-                    className="w-full bg-comic-black border border-neutral-700 rounded p-2.5 text-xs text-white focus:border-comic-cyan focus:outline-none"
-                  >
-                    <option value="image">Image (≤25MB)</option>
-                    <option value="video">Video (≤150MB)</option>
-                  </select>
-                </div>
+              <div>
+                <label className="block text-xs font-mono uppercase text-neutral-300 mb-1 font-bold">
+                  Alt Text (accessibility)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Describe the image for screen readers"
+                  value={uploadData.altText}
+                  onChange={(e) => setUploadData({ ...uploadData, altText: e.target.value })}
+                  className="w-full bg-comic-black border border-neutral-700 rounded p-2.5 text-xs text-white focus:border-comic-cyan focus:outline-none"
+                />
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -540,10 +610,10 @@ export default function AdminMediaLibraryPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={uploading}
-                  className="px-6 py-2 bg-comic-cyan text-comic-black font-heading font-black text-xs uppercase rounded border-2 border-black shadow-[3px_3px_0px_#000]"
+                  disabled={uploading || !selectedFile}
+                  className="px-6 py-2 bg-comic-cyan text-comic-black font-heading font-black text-xs uppercase rounded border-2 border-black shadow-[3px_3px_0px_#000] disabled:opacity-50"
                 >
-                  {uploading ? "Extracting Swatches..." : "Upload & Run Palette Extraction →"}
+                  {uploading ? uploadStage || "Uploading…" : "Upload & Extract Palette →"}
                 </button>
               </div>
             </form>

@@ -48,6 +48,14 @@ export interface DBMediaAsset {
   created_by: string | null;
   created_at: string;
   updated_at: string;
+  alt_text?: string | null;
+  caption?: string | null;
+  width?: number | null;
+  height?: number | null;
+  file_size_bytes?: number | null;
+  mime_type?: string | null;
+  storage_key?: string | null;
+  original_filename?: string | null;
 }
 
 export interface DBVertical {
@@ -66,6 +74,12 @@ export interface DBVertical {
   media_title?: string;
   palette?: ColorPalette;
   file_type?: "image" | "video";
+  description?: string | null;
+  cta_text?: string;
+  cta_url?: string | null;
+  accent_color?: string | null;
+  card_bg_color?: string | null;
+  is_enabled?: boolean;
 }
 
 export interface DBLead {
@@ -2226,21 +2240,39 @@ export async function createVertical(data: Partial<DBVertical> & {
   roasStat?: string;
   isFeatured?: boolean;
   displayOrder?: number;
+  ctaText?: string;
+  ctaUrl?: string | null;
+  accentColor?: string | null;
+  cardBgColor?: string | null;
+  isEnabled?: boolean;
 }): Promise<DBVertical> {
   const id = `v-${Date.now()}`;
-  return {
-    id,
-    category: data.category || "Events",
-    hero_media_id: data.hero_media_id || data.heroMediaId || null,
-    headline: data.headline || "SPECTACULAR EVENT PRODUCTION",
-    client_name: data.client_name || data.clientName || "Viral Plug",
-    reach_stat: data.reach_stat || data.reachStat || "1M+ Impressions",
-    roas_stat: data.roas_stat || data.roasStat || "98% Positive",
-    is_featured: data.is_featured ?? data.isFeatured ?? true,
-    display_order: data.display_order ?? data.displayOrder ?? 1,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
+  const res = await query<DBVertical>(
+    `INSERT INTO verticals
+       (id, category, hero_media_id, headline, client_name, reach_stat, roas_stat,
+        is_featured, display_order, description, cta_text, cta_url, accent_color,
+        card_bg_color, is_enabled)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+     RETURNING *`,
+    [
+      id,
+      data.category || "Events",
+      data.hero_media_id ?? data.heroMediaId ?? null,
+      data.headline || "SPECTACULAR EVENT PRODUCTION",
+      data.client_name || data.clientName || "Viral Plug",
+      data.reach_stat || data.reachStat || "1M+ Impressions",
+      data.roas_stat || data.roasStat || "98% Positive",
+      data.is_featured ?? data.isFeatured ?? true,
+      data.display_order ?? data.displayOrder ?? 1,
+      data.description ?? null,
+      data.cta_text ?? data.ctaText ?? "Launch Niche Campaign",
+      data.cta_url ?? data.ctaUrl ?? null,
+      data.accent_color ?? data.accentColor ?? null,
+      data.card_bg_color ?? data.cardBgColor ?? null,
+      data.is_enabled ?? data.isEnabled ?? true,
+    ]
+  );
+  return res.rows[0];
 }
 
 export async function updateVertical(id: string, data: Partial<DBVertical> & {
@@ -2250,24 +2282,61 @@ export async function updateVertical(id: string, data: Partial<DBVertical> & {
   roasStat?: string;
   isFeatured?: boolean;
   displayOrder?: number;
+  ctaText?: string;
+  ctaUrl?: string | null;
+  accentColor?: string | null;
+  cardBgColor?: string | null;
+  isEnabled?: boolean;
 }): Promise<DBVertical> {
-  return {
-    id,
-    category: data.category || "Events",
-    hero_media_id: data.hero_media_id || data.heroMediaId || null,
-    headline: data.headline || "UPDATED EVENT SHOWCASE",
-    client_name: data.client_name || data.clientName || "Viral Plug Client",
-    reach_stat: data.reach_stat || data.reachStat || "2M+ Impressions",
-    roas_stat: data.roas_stat || data.roasStat || "100% Five Star",
-    is_featured: data.is_featured ?? data.isFeatured ?? true,
-    display_order: data.display_order ?? data.displayOrder ?? 1,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+  // Build a partial UPDATE so a PATCH with only one field doesn't clobber the rest.
+  const fieldMap: Record<string, any> = {
+    category: data.category,
+    hero_media_id: data.hero_media_id !== undefined ? data.hero_media_id : data.heroMediaId,
+    headline: data.headline,
+    client_name: data.client_name ?? data.clientName,
+    reach_stat: data.reach_stat ?? data.reachStat,
+    roas_stat: data.roas_stat ?? data.roasStat,
+    is_featured: data.is_featured ?? data.isFeatured,
+    display_order: data.display_order ?? data.displayOrder,
+    description: data.description,
+    cta_text: data.cta_text ?? data.ctaText,
+    cta_url: data.cta_url !== undefined ? data.cta_url : data.ctaUrl,
+    accent_color: data.accent_color !== undefined ? data.accent_color : data.accentColor,
+    card_bg_color: data.card_bg_color !== undefined ? data.card_bg_color : data.cardBgColor,
+    is_enabled: data.is_enabled ?? data.isEnabled,
   };
+
+  const setClauses: string[] = [];
+  const values: any[] = [];
+  let i = 1;
+  for (const [col, val] of Object.entries(fieldMap)) {
+    if (val !== undefined) {
+      setClauses.push(`${col} = $${i}`);
+      values.push(val);
+      i++;
+    }
+  }
+
+  if (setClauses.length === 0) {
+    const existing = await query<DBVertical>("SELECT * FROM verticals WHERE id = $1", [id]);
+    if (!existing.rows[0]) throw new Error("Vertical not found");
+    return existing.rows[0];
+  }
+
+  setClauses.push(`updated_at = NOW()`);
+  values.push(id);
+
+  const res = await query<DBVertical>(
+    `UPDATE verticals SET ${setClauses.join(", ")} WHERE id = $${i} RETURNING *`,
+    values
+  );
+  if (!res.rows[0]) throw new Error("Vertical not found");
+  return res.rows[0];
 }
 
 export async function deleteVertical(id: string): Promise<boolean> {
-  return true;
+  const res = await query("DELETE FROM verticals WHERE id = $1", [id]);
+  return (res.rowCount ?? 0) > 0;
 }
 
 export async function listMediaAssets(params?: {
@@ -2276,47 +2345,36 @@ export async function listMediaAssets(params?: {
   limit?: number;
   offset?: number;
 }): Promise<DBMediaAsset[]> {
-  return [
-    {
-      id: "media-1",
-      title: "Sunburn EDM Arena Lighting",
-      url: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=1200&q=80",
-      thumbnail_url: "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=400&q=80",
-      file_type: "image",
-      category: "Concerts",
-      client_name: "Percept Live",
-      campaign_headline: "Sunburn Arena EDM Visual Stage",
-      metrics: { views: "4.2M", roas: "6.8x" },
-      palette: {
-        dominant: "#FF0055",
-        vibrant: "#FFE600",
-        darkVibrant: "#000000",
-        lightVibrant: "#FFFFFF",
-        muted: "#737373",
-        darkMuted: "#262626",
-        contrastText: "#FFFFFF",
-        accentFrame: "#FF0055",
-        isDarkImage: true,
-        primary: "#FF0055",
-        secondary: "#FFE600",
-        accent: "#00F0FF",
-        background: "#0A0A0C",
-        cardBg: "#12131A",
-        textPrimary: "#FFFFFF",
-        textSecondary: "#A3A3A3",
-        border: "#262626",
-      },
-      is_overridden: false,
-      created_by: "Vikramaditya Roy",
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-  ];
+  const conditions: string[] = [];
+  const values: any[] = [];
+  let i = 1;
+
+  if (params?.category) {
+    conditions.push(`category = $${i}`);
+    values.push(params.category);
+    i++;
+  }
+  if (params?.search) {
+    conditions.push(`(title ILIKE $${i} OR client_name ILIKE $${i} OR campaign_headline ILIKE $${i})`);
+    values.push(`%${params.search}%`);
+    i++;
+  }
+
+  const where = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
+  const limit = params?.limit ?? 100;
+  const offset = params?.offset ?? 0;
+  values.push(limit, offset);
+
+  const res = await query<DBMediaAsset>(
+    `SELECT * FROM media_assets ${where} ORDER BY created_at DESC LIMIT $${i} OFFSET $${i + 1}`,
+    values
+  );
+  return res.rows;
 }
 
 export async function getMediaAssetById(id: string): Promise<DBMediaAsset | null> {
-  const assets = await listMediaAssets();
-  return assets.find((a) => a.id === id) || assets[0] || null;
+  const res = await query<DBMediaAsset>("SELECT * FROM media_assets WHERE id = $1", [id]);
+  return res.rows[0] || null;
 }
 
 export async function createMediaAsset(data: Partial<DBMediaAsset> & {
@@ -2325,71 +2383,98 @@ export async function createMediaAsset(data: Partial<DBMediaAsset> & {
   clientName?: string;
   campaignHeadline?: string;
   createdBy?: string;
+  altText?: string;
+  fileSizeBytes?: number;
+  mimeType?: string;
+  storageKey?: string;
+  originalFilename?: string;
 }): Promise<DBMediaAsset> {
   const id = `media-${Date.now()}`;
-  return {
-    id,
-    title: data.title || "New Media Asset",
-    url: data.url || "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=800&q=80",
-    thumbnail_url: data.thumbnail_url || data.thumbnailUrl || null,
-    file_type: data.file_type || data.fileType || "image",
-    category: data.category || "Events",
-    client_name: data.client_name || data.clientName || "Viral Plug",
-    campaign_headline: data.campaign_headline || data.campaignHeadline || "High Production Visuals",
-    metrics: data.metrics || {},
-    palette: data.palette || {
-      dominant: "#FF0055",
-      vibrant: "#FFE600",
-      darkVibrant: "#000000",
-      lightVibrant: "#FFFFFF",
-      muted: "#737373",
-      darkMuted: "#262626",
-      contrastText: "#FFFFFF",
-      accentFrame: "#FF0055",
-      isDarkImage: true,
-      primary: "#FF0055",
-      secondary: "#FFE600",
-      accent: "#00F0FF",
-      background: "#0A0A0C",
-      cardBg: "#12131A",
-      textPrimary: "#FFFFFF",
-      textSecondary: "#A3A3A3",
-      border: "#262626",
-    },
-    is_overridden: false,
-    created_by: data.created_by || data.createdBy || null,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
+  const defaultPalette: ColorPalette = {
+    dominant: "#FF0055",
+    vibrant: "#FFE600",
+    darkVibrant: "#000000",
+    lightVibrant: "#FFFFFF",
+    muted: "#737373",
+    darkMuted: "#262626",
+    contrastText: "#FFFFFF",
+    accentFrame: "#FF0055",
+    isDarkImage: true,
+    primary: "#FF0055",
+    secondary: "#FFE600",
+    accent: "#00F0FF",
+    background: "#0A0A0C",
+    cardBg: "#12131A",
+    textPrimary: "#FFFFFF",
+    textSecondary: "#A3A3A3",
+    border: "#262626",
+  } as ColorPalette;
+
+  const res = await query<DBMediaAsset>(
+    `INSERT INTO media_assets
+       (id, title, url, thumbnail_url, file_type, category, client_name, campaign_headline,
+        metrics, palette, is_overridden, created_by, alt_text, caption, width, height,
+        file_size_bytes, mime_type, storage_key, original_filename)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20)
+     RETURNING *`,
+    [
+      id,
+      data.title || "New Media Asset",
+      data.url || "",
+      data.thumbnail_url ?? data.thumbnailUrl ?? null,
+      data.file_type || data.fileType || "image",
+      data.category || "Events",
+      data.client_name || data.clientName || "Viral Plug",
+      data.campaign_headline || data.campaignHeadline || "High Production Visuals",
+      JSON.stringify(data.metrics || {}),
+      JSON.stringify(data.palette || defaultPalette),
+      false,
+      data.created_by || data.createdBy || null,
+      data.alt_text ?? data.altText ?? null,
+      data.caption ?? null,
+      data.width ?? null,
+      data.height ?? null,
+      data.file_size_bytes ?? data.fileSizeBytes ?? null,
+      data.mime_type ?? data.mimeType ?? null,
+      data.storage_key ?? data.storageKey ?? null,
+      data.original_filename ?? data.originalFilename ?? null,
+    ]
+  );
+  return res.rows[0];
+}
+
+/**
+ * Returns where a media asset is currently referenced, so callers can block
+ * deletion instead of silently breaking a live card/hero reference.
+ */
+export async function getMediaAssetUsage(id: string): Promise<{
+  inUse: boolean;
+  verticals: { id: string; headline: string }[];
+}> {
+  const res = await query<{ id: string; headline: string }>(
+    "SELECT id, headline FROM verticals WHERE hero_media_id = $1",
+    [id]
+  );
+  return { inUse: res.rows.length > 0, verticals: res.rows };
 }
 
 export async function deleteMediaAsset(id: string): Promise<boolean> {
-  return true;
+  const usage = await getMediaAssetUsage(id);
+  if (usage.inUse) {
+    const names = usage.verticals.map((v) => v.headline).join(", ");
+    throw new Error(`Cannot delete: still used by ${usage.verticals.length} card(s) (${names})`);
+  }
+  const res = await query("DELETE FROM media_assets WHERE id = $1", [id]);
+  return (res.rowCount ?? 0) > 0;
 }
 
 export async function updateMediaAssetPalette(id: string, palette: ColorPalette, isOverridden?: boolean): Promise<DBMediaAsset> {
-  const asset = await getMediaAssetById(id);
-  if (asset) {
-    asset.palette = palette;
-    asset.is_overridden = isOverridden ?? true;
-    return asset;
-  }
-  return {
-    id,
-    title: "Updated Media",
-    url: "",
-    thumbnail_url: null,
-    file_type: "image",
-    category: "General",
-    client_name: "Client",
-    campaign_headline: "Headline",
-    metrics: {},
-    palette,
-    is_overridden: isOverridden ?? true,
-    created_by: null,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-  };
+  const res = await query<DBMediaAsset>(
+    `UPDATE media_assets SET palette = $1, is_overridden = $2, updated_at = NOW() WHERE id = $3 RETURNING *`,
+    [JSON.stringify(palette), isOverridden ?? true, id]
+  );
+  if (!res.rows[0]) throw new Error("Media asset not found");
+  return res.rows[0];
 }
 
 export async function createLead(data: Partial<DBLead> & {
@@ -2510,5 +2595,3 @@ export async function getDashboardKPIs(): Promise<any> {
     recentCampaigns: await listCampaigns(),
   };
 }
-
-

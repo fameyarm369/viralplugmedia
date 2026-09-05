@@ -300,7 +300,21 @@ CREATE TABLE IF NOT EXISTS app_settings (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
--- Ensure default column alterations if tables existed
+-- 18. Landing Page Versions Table (draft/publish CMS store)
+CREATE TABLE IF NOT EXISTS landing_page_versions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  version_number INTEGER NOT NULL,
+  status VARCHAR(20) NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','published','archived')),
+  config JSONB NOT NULL,
+  created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  published_by UUID REFERENCES users(id) ON DELETE SET NULL,
+  published_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_landing_one_published ON landing_page_versions ((status = 'published')) WHERE status = 'published';
+CREATE INDEX IF NOT EXISTS idx_landing_version_status ON landing_page_versions(status, version_number DESC);
+
+-- Idempotent column alterations for pre-existing tables
 ALTER TABLE leads ADD COLUMN IF NOT EXISTS service_type VARCHAR(100);
 ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS client_email VARCHAR(255);
 ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS client_phone VARCHAR(50);
@@ -315,3 +329,21 @@ ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS cancellation_reason TEXT;
 ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS custom_criteria JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS team_members JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE campaigns ADD COLUMN IF NOT EXISTS budget_breakdown JSONB DEFAULT '{}'::jsonb;
+
+-- Landing Page CMS columns on verticals (cards)
+ALTER TABLE verticals ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE verticals ADD COLUMN IF NOT EXISTS cta_text VARCHAR(100) DEFAULT 'Launch Niche Campaign';
+ALTER TABLE verticals ADD COLUMN IF NOT EXISTS cta_url TEXT;
+ALTER TABLE verticals ADD COLUMN IF NOT EXISTS accent_color VARCHAR(20);
+ALTER TABLE verticals ADD COLUMN IF NOT EXISTS card_bg_color VARCHAR(20);
+ALTER TABLE verticals ADD COLUMN IF NOT EXISTS is_enabled BOOLEAN NOT NULL DEFAULT TRUE;
+
+-- Landing Page CMS columns on media_assets (real upload metadata)
+ALTER TABLE media_assets ADD COLUMN IF NOT EXISTS alt_text VARCHAR(255);
+ALTER TABLE media_assets ADD COLUMN IF NOT EXISTS caption TEXT;
+ALTER TABLE media_assets ADD COLUMN IF NOT EXISTS width INTEGER;
+ALTER TABLE media_assets ADD COLUMN IF NOT EXISTS height INTEGER;
+ALTER TABLE media_assets ADD COLUMN IF NOT EXISTS file_size_bytes BIGINT;
+ALTER TABLE media_assets ADD COLUMN IF NOT EXISTS mime_type VARCHAR(100);
+ALTER TABLE media_assets ADD COLUMN IF NOT EXISTS storage_key TEXT;
+ALTER TABLE media_assets ADD COLUMN IF NOT EXISTS original_filename VARCHAR(255);

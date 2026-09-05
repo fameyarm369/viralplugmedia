@@ -6,12 +6,16 @@ import { Pool } from "pg";
 dotenv.config({ path: ".env.local" });
 dotenv.config();
 
-const connectionString =
-  process.env.DATABASE_URL ||
-  process.env.POSTGRES_URL ||
-  "postgresql://neondb_owner:npg_opPRBT8Nj2ug@ep-long-pine-a58a9jt4-pooler.us-east-2.aws.neon.tech/neondb?sslmode=require";
+const connectionString = process.env.DATABASE_URL || process.env.POSTGRES_URL;
 
 async function runMigration() {
+  if (!connectionString) {
+    console.error(
+      "❌ No database connection string found. Set DATABASE_URL or POSTGRES_URL in your .env.local file."
+    );
+    process.exit(1);
+  }
+
   console.log("🚀 Starting PostgreSQL schema migration...");
   console.log(`Connecting to: ${connectionString.split("@")[1] || "Database"}`);
 
