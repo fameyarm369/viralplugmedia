@@ -5,6 +5,48 @@ import Link from "next/link";
 import { MessageSquare, ShieldCheck, Mail, Phone, MapPin, ArrowRight } from "lucide-react";
 import { ComicButton } from "../comic/ComicButton";
 
+const VERTICALS_COL_1 = [
+  {
+    num: "01",
+    title: "STAY & PROPERTY",
+    keywords: "Real Estate • Hotels • Room Stays",
+    href: "/services?category=stay-realestate",
+  },
+  {
+    num: "03",
+    title: "SPORTS & CULTURE",
+    keywords: "Football • Sports Gear • Fan Communities",
+    href: "/services?category=sports-football",
+  },
+  {
+    num: "05",
+    title: "LOCAL COMMERCE",
+    keywords: "Shops • Retail • Footfall Campaigns",
+    href: "/services?category=local-shops",
+  },
+];
+
+const VERTICALS_COL_2 = [
+  {
+    num: "02",
+    title: "D2C & FOOD",
+    keywords: "Food Brands • Honey • Consumer Products",
+    href: "/services?category=food-honey",
+  },
+  {
+    num: "04",
+    title: "FASHION & STYLE",
+    keywords: "Apparel • Shoes • Lifestyle Brands",
+    href: "/services?category=fashion-shoes",
+  },
+  {
+    num: "06",
+    title: "CREATOR & EVENTS",
+    keywords: "Celebrities • Creators • Launches • Events",
+    href: "/services?category=celebrity-events",
+  },
+];
+
 export const Footer = () => {
   const [sessionUser, setSessionUser] = useState<any>(null);
 
@@ -54,9 +96,9 @@ export const Footer = () => {
       </div>
 
       {/* Main Footer Links */}
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-8 lg:gap-8">
         {/* Col 1: Brand Info */}
-        <div className="space-y-4">
+        <div className="space-y-4 lg:col-span-3">
           <div className="flex items-center gap-2.5">
             <div className="w-10 h-10 bg-comic-yellow text-comic-black rounded border-2 border-black flex items-center justify-center font-display text-xl font-black shadow-[2px_2px_0px_#FF0055]">
               VP
@@ -74,47 +116,62 @@ export const Footer = () => {
           </div>
         </div>
 
-        {/* Col 2: Services */}
-        <div>
-          <h4 className="font-display text-lg uppercase tracking-wider text-comic-yellow mb-4">
+        {/* Col 2: Services / Campaign Verticals */}
+        <div className="lg:col-span-5 md:col-span-2">
+          <h4 className="font-display text-lg uppercase tracking-wider text-comic-yellow mb-5">
             Campaign Verticals
           </h4>
-          <ul className="space-y-2.5 text-sm text-neutral-300 font-heading font-medium">
-            <li>
-              <Link href="/services" className="hover:text-comic-cyan transition-colors">
-                Real Estate & Room Stays
-              </Link>
-            </li>
-            <li>
-              <Link href="/services" className="hover:text-comic-cyan transition-colors">
-                Food & Honey D2C Brands
-              </Link>
-            </li>
-            <li>
-              <Link href="/services" className="hover:text-comic-cyan transition-colors">
-                Sports & Football Gear
-              </Link>
-            </li>
-            <li>
-              <Link href="/services" className="hover:text-comic-cyan transition-colors">
-                Fashion, Apparel & Shoes
-              </Link>
-            </li>
-            <li>
-              <Link href="/services" className="hover:text-comic-cyan transition-colors">
-                Local Shops & Retail Footfalls
-              </Link>
-            </li>
-            <li>
-              <Link href="/services" className="hover:text-comic-cyan transition-colors">
-                Celebrity & Creator Events
-              </Link>
-            </li>
-          </ul>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-5">
+            {/* Column 1: 01, 03, 05 */}
+            <div className="space-y-4 sm:space-y-5">
+              {VERTICALS_COL_1.map((item) => (
+                <Link
+                  key={item.num}
+                  href={item.href}
+                  className="group flex items-start gap-2.5 transition-transform duration-200 hover:translate-x-0.5"
+                >
+                  <span className="font-mono text-xs font-semibold text-comic-yellow pt-0.5 shrink-0 tracking-wider">
+                    {item.num}
+                  </span>
+                  <div>
+                    <h5 className="font-heading font-bold text-sm text-white uppercase tracking-wide group-hover:text-comic-yellow transition-colors leading-snug">
+                      {item.title}
+                    </h5>
+                    <p className="text-xs text-neutral-400 font-body leading-relaxed group-hover:text-neutral-300 transition-colors mt-0.5">
+                      {item.keywords}
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+
+            {/* Column 2: 02, 04, 06 */}
+            <div className="space-y-4 sm:space-y-5">
+              {VERTICALS_COL_2.map((item) => (
+                <Link
+                  key={item.num}
+                  href={item.href}
+                  className="group flex items-start gap-2.5 transition-transform duration-200 hover:translate-x-0.5"
+                >
+                  <span className="font-mono text-xs font-semibold text-comic-yellow pt-0.5 shrink-0 tracking-wider">
+                    {item.num}
+                  </span>
+                  <div>
+                    <h5 className="font-heading font-bold text-sm text-white uppercase tracking-wide group-hover:text-comic-yellow transition-colors leading-snug">
+                      {item.title}
+                    </h5>
+                    <p className="text-xs text-neutral-400 font-body leading-relaxed group-hover:text-neutral-300 transition-colors mt-0.5">
+                      {item.keywords}
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* Col 3: Platform & Legal */}
-        <div>
+        <div className="lg:col-span-2 md:col-span-1">
           <h4 className="font-display text-lg uppercase tracking-wider text-comic-pink mb-4">
             Platform & Portals
           </h4>
@@ -152,7 +209,7 @@ export const Footer = () => {
         </div>
 
         {/* Col 4: Contact & WhatsApp */}
-        <div>
+        <div className="lg:col-span-2 md:col-span-1">
           <h4 className="font-display text-lg uppercase tracking-wider text-comic-cyan mb-4">
             Direct Reach
           </h4>
